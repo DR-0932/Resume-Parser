@@ -1,19 +1,8 @@
-import re
+import re 
 
-def clean_text(text):
-    # Normalize encoding safely
-    text = text.encode("utf-8", "ignore").decode("utf-8")
-
-    # Normalize line endings
-    text = text.replace("\r\n", "\n").replace("\r", "\n")
-
-    # Remove extra spaces but KEEP newlines
-    text = re.sub(r'[ \t]+', ' ', text)
-
-    # Collapse multiple newlines into one
-    text = re.sub(r'\n{2,}', '\n', text)
-
-    # Fix space before punctuation
-    text = re.sub(r'\s([,.!?:])', r'\1', text)
-
+def clean_text(text: str) -> str:
+    text = text.replace("\xa0", " ")
+    text = re.sub(r"-\n", "", text)
+    text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r"\n{2,}", "\n", text)
     return text.strip()

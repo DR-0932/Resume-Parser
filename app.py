@@ -7,6 +7,7 @@ from parser.education_extractor import extract_education
 from parser.experience_extractor import extract_experience
 from parser.projects_extractor import extract_projects
 from parser.section_classifier import classify_sentence
+from parser.text_extractor import extract_text_from_pdf
 import os 
 
 app = Flask(__name__)
@@ -18,15 +19,6 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 def allowed_file(filename):
   
   return '.' in filename and filename.rsplit('.',1)[1].lower() in ALLOWED_EXTENSIONS 
-LABEL_MAP = {
-    "project": "projects",
-    "projects": "projects",
-    "skill": "skills",
-    "skills": "skills",
-    "education": "education",
-    "experience": "experience",
-    "other": "other"
-}
 
 
 @app.route('/uploads',methods = ['POST'])
@@ -52,6 +44,7 @@ def upload_file():
 
     # Extract features
     skills = extract_skills(cleaned_text)
+
     email = extract_email(cleaned_text)
     phone = extract_phone_number(cleaned_text)
     name = extract_name(lines)
@@ -68,26 +61,11 @@ def upload_file():
         "other": []
     }
 
-    for line in lines:
-        if line.strip():  # skip empty lines
-            label = classify_sentence(line)
-            normalized_label = LABEL_MAP.get(label, "other")
-            sections[normalized_label].append(line)
+    raw_text = extract_text_from_pdf(filepath)
+    cleaned_text = clean_text(raw_text)
+    lines = cleaned_text.split("\n")
 
-    return jsonify({
-        "message": "File uploaded successfully",
-        "filename": file.filename,
-        "name": name,
-        "email": email,
-        "phone": phone,
-        "skills": skills,
-        "education": education,
-        "experience": experience,
-        "projects": projects,
-        "sections_ml": sections,
-        "cleaned_text": cleaned_text
-    }), 200
-
+    
 
 
 @app.route('/')
