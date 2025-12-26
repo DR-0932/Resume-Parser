@@ -1,16 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PDF TO CSV GENERATOR</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Resume PDF to CSV</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  
+
 </head>
 <body>
-  <input type="file" id="pdf">
-  <button id="upload"></button>
-  <pre id="output"></pre>
-  <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+  <div class="container">
+    <h1>Resume PDF to CSV</h1>
+    <p>Upload a resume PDF to extract structured data and export it to CSV.</p>
+
+    <form id="uploadForm">
+      <input type="file" id="fileInput" accept=".pdf" required />
+      <button type="submit">Upload & Parse</button>
+    </form>
+    <button id="downloadBtn" disabled>Download CSV</button>
+
+    <pre id="output"></pre>
+  </div>
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>

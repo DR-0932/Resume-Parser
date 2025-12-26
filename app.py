@@ -1,79 +1,63 @@
-from flask import Flask, request,jsonify # what is request
-from parser.pdf_parser import extract_text_from_pdf
-from parser.text_cleaner import clean_text
+from flask import Flask, request, jsonify,render_template
+import os
+
+from parser.extract_text import extract_text_from_pdf
+from parser.section_builder import build_sections
+from parser.csv_writer import write_to_csv
+from parser.text_preprocessor import normalize_headings
 from parser.skill_extractor import extract_skills
-from parser.basic_info import extract_email, extract_phone_number, extract_name
-from parser.education_extractor import extract_education
-from parser.experience_extractor import extract_experience
-from parser.projects_extractor import extract_projects
-from parser.section_classifier import classify_sentence
-from parser.text_extractor import extract_text_from_pdf
-import os 
+from flask import send_file
+
 
 app = Flask(__name__)
+UPLOAD_FOLDER = "uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-UPLOAD_FOLDER ="uploads" 
-ALLOWED_EXTENSIONS = {'pdf','docx'}
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER 
+@app.route("/upload", methods=["POST"])
+@app.route("/upload", methods=["POST"])
+def upload():
+    file = request.files.get("file")
+    if not file:
+        return jsonify({"error": "No file"}), 400
 
-def allowed_file(filename):
-  
-  return '.' in filename and filename.rsplit('.',1)[1].lower() in ALLOWED_EXTENSIONS 
+    path = os.path.join(UPLOAD_FOLDER, file.filename)
+    file.save(path)
 
+    # 1. Extract text
+    raw_text = extract_text_from_pdf(path)
 
-@app.route('/uploads',methods = ['POST'])
-def upload_file():
+    # 2. Normalize headings BEFORE sectioning
+    normalized_text = normalize_headings(raw_text)
+    lines = normalized_text.split("\n")
 
-    if 'file' not in request.files:
-        return jsonify({"error": "No file part"}), 400
+    # 3. Build sections
+    sections = build_sections(lines)
 
-    file = request.files['file']
+    # 4. Extract skills from multiple sections
+    skill_text = " ".join(
+        sections.get("skills", []) +
+        sections.get("projects", []) +
+        sections.get("experience", []) +
+        sections.get("certifications", [])
+    )
 
-    if file.filename == '':
-        return jsonify({"error": "No file selected"}), 400
+    sections["skills"] = extract_skills(skill_text)
 
-    if not allowed_file(file.filename):
-        return jsonify({"error": "Invalid file type"}), 400
+    # 5. Write CSV ONCE
+    write_to_csv(file.filename, sections)
 
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
-    file.save(filepath)
-
-    extracted_text = extract_text_from_pdf(filepath)
-    cleaned_text = clean_text(extracted_text)
-    lines = cleaned_text.split("\n")
-
-    # Extract features
-    skills = extract_skills(cleaned_text)
-
-    email = extract_email(cleaned_text)
-    phone = extract_phone_number(cleaned_text)
-    name = extract_name(lines)
-    education = extract_education(lines)
-    experience = extract_experience(lines)
-    projects = extract_projects(lines)
-
-    # ML Section Classifier
-    sections = {
-        "education": [],
-        "experience": [],
-        "skills": [],
-        "projects": [],
-        "other": []
-    }
-
-    raw_text = extract_text_from_pdf(filepath)
-    cleaned_text = clean_text(raw_text)
-    lines = cleaned_text.split("\n")
-
+    return jsonify(sections), 200
     
-
-
-@app.route('/')
-
+@app.route("/")
 def home():
-  return "Server running 1 2 3 ..."
+    return render_template("index.html")
 
-if __name__ == '__main__':
-  
-  app.run(debug=True)
-
+@app.route("/download")
+def download_csv():
+    return send_file(
+        "parsed_resumes.csv",
+        as_attachment=True,
+        download_name="parsed_resumes.csv"
+    )
+if __name__ == "__main__":
+    app.run(debug=True)
